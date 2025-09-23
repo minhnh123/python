@@ -15,6 +15,8 @@ import os
 from database_manager import QuanLySinhVien
 from models import SinhVien
 from ttkthemes import ThemedTk
+from PIL import Image, ImageTk # <-- Thêm import này
+
 
 class App:
     def __init__(self, root):
@@ -38,6 +40,7 @@ class App:
         except ConnectionError as e:
             messagebox.showerror("Lỗi kết nối", e); self.root.destroy(); return
         
+        self.load_icons()
         self.sv_current_page = 1
         self.sv_page_size = 15
         self.sv_total_records = 0
@@ -46,6 +49,21 @@ class App:
         self._after_id = None
         self.create_widgets()
         self.load_initial_data()
+    
+    def load_icons(self):
+        try:
+            self.addsv_icon = ImageTk.PhotoImage(Image.open("icons/add-sv.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.add_icon = ImageTk.PhotoImage(Image.open("icons/add.png").resize((16, 16), Image.Resampling.LANCZOS))
+
+            self.update_icon = ImageTk.PhotoImage(Image.open("icons/update.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.delete_icon = ImageTk.PhotoImage(Image.open("icons/delete.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.clear_icon = ImageTk.PhotoImage(Image.open("icons/clear.png").resize((16, 16), Image.Resampling.LANCZOS))
+        except FileNotFoundError as e:
+            messagebox.showwarning("Thiếu file Icon", f"Không tìm thấy file icon: {e}\nChương trình sẽ chạy mà không có icon.")
+            self.add_icon = self.update_icon = self.delete_icon = self.clear_icon = None
+        except Exception as e:
+            messagebox.showerror("Lỗi Icon", f"Lỗi khi tải icon: {e}")
+            self.add_icon = self.update_icon = self.delete_icon = self.clear_icon = None
 
     def create_widgets(self):
         self.notebook = ttk.Notebook(self.root)
@@ -78,7 +96,7 @@ class App:
     def create_sv_tab(self):
         sv_main_frame = ttk.Frame(self.tab_sv)
         sv_main_frame.pack(fill="both", expand=True)
-        
+    
         sv_filter_frame = ttk.LabelFrame(sv_main_frame, text="Bộ lọc và Tìm kiếm", padding=10)
         sv_filter_frame.pack(fill="x", pady=5)
         ttk.Label(sv_filter_frame, text="Khoa:").pack(side="left", padx=(0,5))
@@ -94,13 +112,13 @@ class App:
         self.sv_search_entry.pack(side="left", padx=(0,10))
         self.sv_search_entry.bind("<KeyRelease>", self.debounce(lambda e: self.reset_and_load_sv(), 500))
         ttk.Button(sv_filter_frame, text="Bỏ lọc", command=self.clear_sv_filter).pack(side="left", padx=5)
-        
+    
         sv_content_frame = ttk.Frame(sv_main_frame)
         sv_content_frame.pack(fill="both", expand=True, pady=5)
-        
+    
         sv_form_frame = ttk.LabelFrame(sv_content_frame, text="Thông tin Sinh viên", padding=10)
         sv_form_frame.grid(row=0, column=0, rowspan=3, padx=(0,10), sticky="ns")
-        
+    
         ttk.Label(sv_form_frame, text="Họ tên:").grid(row=0, column=0, sticky="w", pady=5)
         self.sv_ho_ten_entry = ttk.Entry(sv_form_frame, width=30)
         self.sv_ho_ten_entry.grid(row=0, column=1, sticky="ew", pady=5)
@@ -119,26 +137,27 @@ class App:
 
         sv_crud_button_frame = ttk.LabelFrame(sv_form_frame, text="Chức năng Cơ bản", padding=10)
         sv_crud_button_frame.grid(row=5, column=0, columnspan=2, sticky="ew", pady=10)
-        ttk.Button(sv_crud_button_frame, text="Thêm", command=self.add_student).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(sv_crud_button_frame, text="Cập nhật", command=self.update_student).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(sv_crud_button_frame, text="Xóa", command=self.delete_student).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(sv_crud_button_frame, text="Xóa Form", command=self.clear_sv_form).pack(side="left", expand=True, fill="x", padx=5)
-        
+    
+        ttk.Button(sv_crud_button_frame, text=" Thêm", image=self.addsv_icon, compound='left', command=self.add_student).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(sv_crud_button_frame, text=" Cập nhật", image=self.update_icon, compound='left', command=self.update_student).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(sv_crud_button_frame, text=" Xóa", image=self.delete_icon, compound='left', command=self.delete_student).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(sv_crud_button_frame, text=" Xóa Form", image=self.clear_icon, compound='left', command=self.clear_sv_form).pack(side="left", expand=True, fill="x", padx=5)
+    
         sv_adv_button_frame = ttk.LabelFrame(sv_form_frame, text="Chức năng Nâng cao", padding=10)
         sv_adv_button_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=5)
         ttk.Button(sv_adv_button_frame, text="Thống kê điểm TB", command=self.show_statistics).pack(fill="x", pady=2)
         ttk.Button(sv_adv_button_frame, text="Vẽ biểu đồ điểm TB", command=self.draw_chart).pack(fill="x", pady=2)
         ttk.Button(sv_adv_button_frame, text="Gửi Báo cáo Email", command=self.open_email_dialog).pack(fill="x", pady=2)
-        
+    
         sv_tree_frame = ttk.Frame(sv_content_frame)
         sv_tree_frame.grid(row=0, column=1, padx=(10,0), sticky="nsew")
-        
+    
         self.sv_tree = ttk.Treeview(sv_tree_frame, columns=("ID", "HoTen", "MSSV", "Email", "DiemTB", "Lop", "Khoa"), show="headings")
         self.sv_tree.heading("ID", text="ID"); self.sv_tree.heading("HoTen", text="Họ tên"); self.sv_tree.heading("MSSV", text="MSSV")
         self.sv_tree.heading("Email", text="Email"); self.sv_tree.heading("DiemTB", text="Điểm TB"); self.sv_tree.heading("Lop", text="Lớp"); self.sv_tree.heading("Khoa", text="Khoa")
         self.sv_tree.column("ID", width=30, anchor="center"); self.sv_tree.column("HoTen", width=150); self.sv_tree.column("MSSV", width=80)
         self.sv_tree.column("Email", width=150); self.sv_tree.column("DiemTB", width=60, anchor="center"); self.sv_tree.column("Lop", width=100); self.sv_tree.column("Khoa", width=120)
-        
+    
         sv_pagination_frame = ttk.Frame(sv_tree_frame)
         sv_pagination_frame.pack(side="bottom", fill="x", pady=(5,0))
         self.sv_prev_button = ttk.Button(sv_pagination_frame, text="<< Trang trước", command=self.sv_go_to_prev_page)
@@ -147,14 +166,14 @@ class App:
         self.sv_page_label.pack(side="left", expand=True)
         self.sv_next_button = ttk.Button(sv_pagination_frame, text="Trang sau >>", command=self.sv_go_to_next_page)
         self.sv_next_button.pack(side="right", padx=5)
-        
+    
         self.sv_tree.pack(side="top", fill="both", expand=True)
-        
+    
         self.sv_tree.bind("<<TreeviewSelect>>", self.on_sv_select)
         self.sv_context_menu = tk.Menu(self.sv_tree, tearoff=0)
         self.sv_context_menu.add_command(label="Xem/Nhập điểm chi tiết", command=self.open_grades_window)
         self.sv_tree.bind("<Button-3>", self.show_sv_context_menu)
-        
+    
         sv_content_frame.grid_columnconfigure(1, weight=1)
         sv_content_frame.grid_rowconfigure(0, weight=1)
 
@@ -184,10 +203,10 @@ class App:
         
         lop_button_frame = ttk.LabelFrame(lop_form_frame, text="Chức năng", padding=10)
         lop_button_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
-        ttk.Button(lop_button_frame, text="Thêm", command=self.add_lop).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(lop_button_frame, text="Cập nhật", command=self.update_lop).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(lop_button_frame, text="Xóa", command=self.delete_lop).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(lop_button_frame, text="Xóa Form", command=self.clear_lop_form).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(lop_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_lop).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(lop_button_frame, text=" Cập nhật", image=self.update_icon, compound='left', command=self.update_lop).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(lop_button_frame, text=" Xóa", image=self.delete_icon, compound='left', command=self.delete_lop).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(lop_button_frame, text=" Xóa Form", image=self.clear_icon, compound='left', command=self.clear_lop_form).pack(side="left", expand=True, fill="x", padx=5)
         
         lop_tree_frame = ttk.Frame(lop_content_frame)
         lop_tree_frame.grid(row=0, column=1, padx=(10,0), sticky="nsew")
@@ -215,10 +234,10 @@ class App:
         self.khoa_ten_entry.grid(row=0, column=1, sticky="ew", pady=5)
         khoa_button_frame = ttk.LabelFrame(khoa_form_frame, text="Chức năng", padding=10)
         khoa_button_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
-        ttk.Button(khoa_button_frame, text="Thêm", command=self.add_khoa).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(khoa_button_frame, text="Cập nhật", command=self.update_khoa).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(khoa_button_frame, text="Xóa", command=self.delete_khoa).pack(side="left", expand=True, fill="x", padx=5)
-        ttk.Button(khoa_button_frame, text="Xóa Form", command=self.clear_khoa_form).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(khoa_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_khoa).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(khoa_button_frame, text=" Cập nhật", image=self.update_icon, compound='left', command=self.update_khoa).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(khoa_button_frame, text=" Xóa", image=self.delete_icon, compound='left', command=self.delete_khoa).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(khoa_button_frame, text=" Xóa Form", image=self.clear_icon, compound='left', command=self.clear_khoa_form).pack(side="left", expand=True, fill="x", padx=5)
         khoa_tree_frame = ttk.Frame(khoa_main_frame)
         khoa_tree_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         self.khoa_tree = ttk.Treeview(khoa_tree_frame, columns=("ID", "TenKhoa"), show="headings")
@@ -248,7 +267,7 @@ class App:
         self.mh_khoa_combo.grid(row=2, column=1, sticky="ew", pady=5)
         mh_button_frame = ttk.LabelFrame(mh_form_frame, text="Chức năng", padding=10)
         mh_button_frame.grid(row=3, column=0, columnspan=2, pady=10, sticky="ew")
-        ttk.Button(mh_button_frame, text="Thêm", command=self.add_mon_hoc).pack(side="left", expand=True, fill="x", padx=5)
+        ttk.Button(mh_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_mon_hoc).pack(side="left", expand=True, fill="x", padx=5)
         mh_tree_frame = ttk.Frame(mh_main_frame)
         mh_tree_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         self.mh_tree = ttk.Treeview(mh_tree_frame, columns=("ID", "TenMon", "SoTinChi", "TenKhoa"), show="headings")
