@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 from mysql.connector import Error
 import math
 import re
@@ -15,8 +15,7 @@ import os
 from database_manager import QuanLySinhVien
 from models import SinhVien
 from ttkthemes import ThemedTk
-from PIL import Image, ImageTk # <-- Thêm import này
-
+from PIL import Image, ImageTk
 
 class App:
     def __init__(self, root):
@@ -25,54 +24,85 @@ class App:
         self.root.geometry("1200x650")
 
         self.style = ttk.Style(self.root)
-        self.style.theme_use('clam') 
+        self.style.theme_use('clam')
+        COLOR_BG = "#f0f0f0"
+        COLOR_PRIMARY = "#3498db"
+        COLOR_PRIMARY_ACTIVE = "#2980b9"
+        COLOR_TEXT_DARK = "#2c3e50"
+        COLOR_TEXT_LIGHT = "white"
+        COLOR_FIELD_BG = "white"
 
-        self.style.configure("TButton", padding=6, relief="flat", font=('Helvetica', 10))
-        self.style.configure("Treeview", rowheight=25, font=('Helvetica', 9))
-        self.style.configure("Treeview.Heading", font=('Helvetica', 10, 'bold'))
-        self.style.configure("TLabelFrame.Label", font=('Helvetica', 10, 'bold'))
-        self.style.configure("TLabel", font=('Helvetica', 10))
-        self.style.configure("TEntry", font=('Helvetica', 10))
-        self.style.configure("TCombobox", font=('Helvetica', 10))
+        FONT_NORMAL = ("Helvetica", 10)
+        FONT_BOLD = ("Helvetica", 10, "bold")
+        FONT_TREEVIEW = ("Helvetica", 9)
+        self.root.configure(bg=COLOR_BG)
+
+        # Style config
+        self.style.configure("TButton", background=COLOR_PRIMARY, foreground=COLOR_TEXT_LIGHT, font=FONT_BOLD, padding=6)
+        self.style.map("TButton", background=[("active", COLOR_PRIMARY_ACTIVE)])
+        self.style.configure("TLabel", background=COLOR_BG, foreground=COLOR_TEXT_DARK, font=FONT_NORMAL)
+        self.style.configure("TLabelframe", background=COLOR_BG, borderwidth=2, relief="groove")
+        self.style.configure("TLabelframe.Label", background=COLOR_BG, foreground=COLOR_TEXT_DARK, font=FONT_BOLD)
+        self.style.configure("Custom.TEntry", fieldbackground=COLOR_FIELD_BG, foreground="black", font=FONT_NORMAL)
+        self.style.configure("TEntry", fieldbackground=COLOR_FIELD_BG, foreground="black", font=FONT_NORMAL)
+        self.style.configure("TCombobox", fieldbackground=COLOR_FIELD_BG, foreground="black", font=FONT_NORMAL)
+        self.style.map('TCombobox', fieldbackground=[('readonly', COLOR_FIELD_BG)])
+        self.style.configure("Treeview", background=COLOR_FIELD_BG, foreground="black", rowheight=25, fieldbackground=COLOR_FIELD_BG, font=FONT_TREEVIEW)
+        self.style.map("Treeview", background=[("selected", COLOR_PRIMARY)], foreground=[("selected", COLOR_TEXT_LIGHT)])
+        self.style.configure("Treeview.Heading", background=COLOR_PRIMARY, foreground=COLOR_TEXT_LIGHT, font=FONT_BOLD)
+
+        # Custom style for main frames and label frames
+        self.style.configure("Main.TFrame", background=COLOR_BG)
+        self.style.configure("Main.TLabelframe", background=COLOR_BG)
+        self.style.configure("Main.TLabelframe.Label", background=COLOR_BG, foreground=COLOR_TEXT_DARK, font=FONT_BOLD)
+        self.style.configure("Main.TNotebook", background=COLOR_BG, borderwidth=0)
+        self.style.configure("Main.TNotebook.Tab", background=COLOR_BG, font=FONT_BOLD)
+        self.style.map("Main.TNotebook.Tab", background=[("selected", COLOR_BG)])
 
         try:
             self.db = QuanLySinhVien()
         except ConnectionError as e:
-            messagebox.showerror("Lỗi kết nối", e); self.root.destroy(); return
-        
+            messagebox.showerror("Lỗi kết nối", e)
+            self.root.destroy()
+            return
+
         self.load_icons()
         self.sv_current_page = 1
         self.sv_page_size = 15
         self.sv_total_records = 0
         self.sv_total_pages = 1
-        
         self._after_id = None
         self.create_widgets()
         self.load_initial_data()
-    
+
     def load_icons(self):
         try:
-            self.addsv_icon = ImageTk.PhotoImage(Image.open("icons/add-sv.png").resize((16, 16), Image.Resampling.LANCZOS))
             self.add_icon = ImageTk.PhotoImage(Image.open("icons/add.png").resize((16, 16), Image.Resampling.LANCZOS))
-
             self.update_icon = ImageTk.PhotoImage(Image.open("icons/update.png").resize((16, 16), Image.Resampling.LANCZOS))
             self.delete_icon = ImageTk.PhotoImage(Image.open("icons/delete.png").resize((16, 16), Image.Resampling.LANCZOS))
             self.clear_icon = ImageTk.PhotoImage(Image.open("icons/clear.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.stats_icon = ImageTk.PhotoImage(Image.open("icons/stats.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.chart_icon = ImageTk.PhotoImage(Image.open("icons/chart.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.email_icon = ImageTk.PhotoImage(Image.open("icons/email.png").resize((16, 16), Image.Resampling.LANCZOS))
+            self.clear_filter_icon = ImageTk.PhotoImage(Image.open("icons/clear_filter.png").resize((16, 16), Image.Resampling.LANCZOS)) # Icon mới
+
         except FileNotFoundError as e:
             messagebox.showwarning("Thiếu file Icon", f"Không tìm thấy file icon: {e}\nChương trình sẽ chạy mà không có icon.")
-            self.add_icon = self.update_icon = self.delete_icon = self.clear_icon = None
+            self.add_icon = self.update_icon = self.delete_icon = self.clear_icon = self.stats_icon = self.chart_icon = self.email_icon = self.clear_filter_icon = None
         except Exception as e:
             messagebox.showerror("Lỗi Icon", f"Lỗi khi tải icon: {e}")
-            self.add_icon = self.update_icon = self.delete_icon = self.clear_icon = None
+            self.add_icon = self.update_icon = self.delete_icon = self.clear_icon = self.stats_icon = self.chart_icon = self.email_icon = self.clear_filter_icon = None
+
+    # ... (các hàm create_widgets, load_initial_data, refresh_all_data giữ nguyên)
 
     def create_widgets(self):
-        self.notebook = ttk.Notebook(self.root)
+        self.notebook = ttk.Notebook(self.root, style="Main.TNotebook")
         self.notebook.pack(pady=10, padx=10, fill="both", expand=True)
 
-        self.tab_sv = ttk.Frame(self.notebook, padding=10)
-        self.tab_lop = ttk.Frame(self.notebook, padding=10)
-        self.tab_khoa = ttk.Frame(self.notebook, padding=10)
-        self.tab_mon_hoc = ttk.Frame(self.notebook, padding=10)
+        self.tab_sv = ttk.Frame(self.notebook, style="Main.TFrame", padding=10)
+        self.tab_lop = ttk.Frame(self.notebook, style="Main.TFrame", padding=10)
+        self.tab_khoa = ttk.Frame(self.notebook, style="Main.TFrame", padding=10)
+        self.tab_mon_hoc = ttk.Frame(self.notebook, style="Main.TFrame", padding=10)
 
         self.notebook.add(self.tab_sv, text='Quản lý Sinh viên')
         self.notebook.add(self.tab_lop, text='Quản lý Lớp')
@@ -94,10 +124,9 @@ class App:
         self.load_initial_data()
 
     def create_sv_tab(self):
-        sv_main_frame = ttk.Frame(self.tab_sv)
+        sv_main_frame = ttk.Frame(self.tab_sv, style="Main.TFrame")
         sv_main_frame.pack(fill="both", expand=True)
-    
-        sv_filter_frame = ttk.LabelFrame(sv_main_frame, text="Bộ lọc và Tìm kiếm", padding=10)
+        sv_filter_frame = ttk.LabelFrame(sv_main_frame, text="Bộ lọc và Tìm kiếm", padding=10, style="Main.TLabelframe")
         sv_filter_frame.pack(fill="x", pady=5)
         ttk.Label(sv_filter_frame, text="Khoa:").pack(side="left", padx=(0,5))
         self.sv_filter_khoa_combo = ttk.Combobox(sv_filter_frame, state="readonly", width=25)
@@ -111,14 +140,14 @@ class App:
         self.sv_search_entry = ttk.Entry(sv_filter_frame, width=25)
         self.sv_search_entry.pack(side="left", padx=(0,10))
         self.sv_search_entry.bind("<KeyRelease>", self.debounce(lambda e: self.reset_and_load_sv(), 500))
-        ttk.Button(sv_filter_frame, text="Bỏ lọc", command=self.clear_sv_filter).pack(side="left", padx=5)
-    
-        sv_content_frame = ttk.Frame(sv_main_frame)
+        ttk.Button(sv_filter_frame, text=" Bỏ lọc", image=self.clear_filter_icon, compound='left', command=self.clear_sv_filter).pack(side="left", padx=5)
+
+        sv_content_frame = ttk.Frame(sv_main_frame, style="Main.TFrame")
         sv_content_frame.pack(fill="both", expand=True, pady=5)
-    
-        sv_form_frame = ttk.LabelFrame(sv_content_frame, text="Thông tin Sinh viên", padding=10)
+
+        sv_form_frame = ttk.LabelFrame(sv_content_frame, text="Thông tin Sinh viên", padding=10, style="Main.TLabelframe")
         sv_form_frame.grid(row=0, column=0, rowspan=3, padx=(0,10), sticky="ns")
-    
+
         ttk.Label(sv_form_frame, text="Họ tên:").grid(row=0, column=0, sticky="w", pady=5)
         self.sv_ho_ten_entry = ttk.Entry(sv_form_frame, width=30)
         self.sv_ho_ten_entry.grid(row=0, column=1, sticky="ew", pady=5)
@@ -135,30 +164,31 @@ class App:
         self.sv_lop_combo = ttk.Combobox(sv_form_frame, state="readonly", width=28)
         self.sv_lop_combo.grid(row=4, column=1, sticky="ew", pady=5)
 
-        sv_crud_button_frame = ttk.LabelFrame(sv_form_frame, text="Chức năng Cơ bản", padding=10)
+        sv_crud_button_frame = ttk.LabelFrame(sv_form_frame, text="Chức năng Cơ bản", padding=10, style="Main.TLabelframe")
         sv_crud_button_frame.grid(row=5, column=0, columnspan=2, sticky="ew", pady=10)
-    
-        ttk.Button(sv_crud_button_frame, text=" Thêm", image=self.addsv_icon, compound='left', command=self.add_student).pack(side="left", expand=True, fill="x", padx=5)
+
+        ttk.Button(sv_crud_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_student).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(sv_crud_button_frame, text=" Cập nhật", image=self.update_icon, compound='left', command=self.update_student).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(sv_crud_button_frame, text=" Xóa", image=self.delete_icon, compound='left', command=self.delete_student).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(sv_crud_button_frame, text=" Xóa Form", image=self.clear_icon, compound='left', command=self.clear_sv_form).pack(side="left", expand=True, fill="x", padx=5)
-    
-        sv_adv_button_frame = ttk.LabelFrame(sv_form_frame, text="Chức năng Nâng cao", padding=10)
+
+        sv_adv_button_frame = ttk.LabelFrame(sv_form_frame, text="Chức năng Nâng cao", padding=10, style="Main.TLabelframe")
         sv_adv_button_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=5)
-        ttk.Button(sv_adv_button_frame, text="Thống kê điểm TB", command=self.show_statistics).pack(fill="x", pady=2)
-        ttk.Button(sv_adv_button_frame, text="Vẽ biểu đồ điểm TB", command=self.draw_chart).pack(fill="x", pady=2)
-        ttk.Button(sv_adv_button_frame, text="Gửi Báo cáo Email", command=self.open_email_dialog).pack(fill="x", pady=2)
-    
-        sv_tree_frame = ttk.Frame(sv_content_frame)
+
+        ttk.Button(sv_adv_button_frame, text=" Thống kê điểm TB", image=self.stats_icon, compound='left', command=self.show_statistics).pack(fill="x", pady=2)
+        ttk.Button(sv_adv_button_frame, text=" Vẽ biểu đồ điểm TB", image=self.chart_icon, compound='left', command=self.draw_chart).pack(fill="x", pady=2)
+        ttk.Button(sv_adv_button_frame, text=" Gửi Báo cáo Email", image=self.email_icon, compound='left', command=self.open_email_dialog).pack(fill="x", pady=2)
+
+        sv_tree_frame = ttk.Frame(sv_content_frame, style="Main.TFrame")
         sv_tree_frame.grid(row=0, column=1, padx=(10,0), sticky="nsew")
-    
+
         self.sv_tree = ttk.Treeview(sv_tree_frame, columns=("ID", "HoTen", "MSSV", "Email", "DiemTB", "Lop", "Khoa"), show="headings")
         self.sv_tree.heading("ID", text="ID"); self.sv_tree.heading("HoTen", text="Họ tên"); self.sv_tree.heading("MSSV", text="MSSV")
         self.sv_tree.heading("Email", text="Email"); self.sv_tree.heading("DiemTB", text="Điểm TB"); self.sv_tree.heading("Lop", text="Lớp"); self.sv_tree.heading("Khoa", text="Khoa")
         self.sv_tree.column("ID", width=30, anchor="center"); self.sv_tree.column("HoTen", width=150); self.sv_tree.column("MSSV", width=80)
         self.sv_tree.column("Email", width=150); self.sv_tree.column("DiemTB", width=60, anchor="center"); self.sv_tree.column("Lop", width=100); self.sv_tree.column("Khoa", width=120)
-    
-        sv_pagination_frame = ttk.Frame(sv_tree_frame)
+
+        sv_pagination_frame = ttk.Frame(sv_tree_frame, style="Main.TFrame")
         sv_pagination_frame.pack(side="bottom", fill="x", pady=(5,0))
         self.sv_prev_button = ttk.Button(sv_pagination_frame, text="<< Trang trước", command=self.sv_go_to_prev_page)
         self.sv_prev_button.pack(side="left", padx=5)
@@ -166,33 +196,33 @@ class App:
         self.sv_page_label.pack(side="left", expand=True)
         self.sv_next_button = ttk.Button(sv_pagination_frame, text="Trang sau >>", command=self.sv_go_to_next_page)
         self.sv_next_button.pack(side="right", padx=5)
-    
+
         self.sv_tree.pack(side="top", fill="both", expand=True)
-    
+
         self.sv_tree.bind("<<TreeviewSelect>>", self.on_sv_select)
         self.sv_context_menu = tk.Menu(self.sv_tree, tearoff=0)
         self.sv_context_menu.add_command(label="Xem/Nhập điểm chi tiết", command=self.open_grades_window)
         self.sv_tree.bind("<Button-3>", self.show_sv_context_menu)
-    
+
         sv_content_frame.grid_columnconfigure(1, weight=1)
         sv_content_frame.grid_rowconfigure(0, weight=1)
 
     def create_lop_tab(self):
-        lop_main_frame = ttk.Frame(self.tab_lop)
+        lop_main_frame = ttk.Frame(self.tab_lop, style="Main.TFrame")
         lop_main_frame.pack(fill="both", expand=True)
         
-        lop_filter_frame = ttk.LabelFrame(lop_main_frame, text="Bộ lọc", padding=10)
+        lop_filter_frame = ttk.LabelFrame(lop_main_frame, text="Bộ lọc", padding=10, style="Main.TLabelframe")
         lop_filter_frame.pack(fill="x", padx=10, pady=5)
         ttk.Label(lop_filter_frame, text="Lọc theo Khoa:").pack(side="left", padx=5)
         self.lop_filter_khoa_combo = ttk.Combobox(lop_filter_frame, state="readonly", width=30)
         self.lop_filter_khoa_combo.pack(side="left", padx=5)
         self.lop_filter_khoa_combo.bind("<<ComboboxSelected>>", self.load_lop_data)
-        ttk.Button(lop_filter_frame, text="Bỏ lọc", command=self.clear_lop_filter).pack(side="left", padx=5)
+        ttk.Button(lop_filter_frame, text=" Bỏ lọc", image=self.clear_filter_icon, compound='left', command=self.clear_lop_filter).pack(side="left", padx=5)
 
-        lop_content_frame = ttk.Frame(lop_main_frame)
+        lop_content_frame = ttk.Frame(lop_main_frame, style="Main.TFrame")
         lop_content_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
-        lop_form_frame = ttk.LabelFrame(lop_content_frame, text="Thông tin Lớp", padding=10)
+        lop_form_frame = ttk.LabelFrame(lop_content_frame, text="Thông tin Lớp", padding=10, style="Main.TLabelframe")
         lop_form_frame.grid(row=0, column=0, rowspan=2, padx=(0,10), sticky="ns")
         ttk.Label(lop_form_frame, text="Tên Lớp:").grid(row=0, column=0, sticky="w", pady=5)
         self.lop_ten_entry = ttk.Entry(lop_form_frame, width=30)
@@ -201,14 +231,14 @@ class App:
         self.lop_khoa_combo = ttk.Combobox(lop_form_frame, state="readonly", width=28)
         self.lop_khoa_combo.grid(row=1, column=1, sticky="ew", pady=5)
         
-        lop_button_frame = ttk.LabelFrame(lop_form_frame, text="Chức năng", padding=10)
+        lop_button_frame = ttk.LabelFrame(lop_form_frame, text="Chức năng", padding=10, style="Main.TLabelframe")
         lop_button_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
         ttk.Button(lop_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_lop).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(lop_button_frame, text=" Cập nhật", image=self.update_icon, compound='left', command=self.update_lop).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(lop_button_frame, text=" Xóa", image=self.delete_icon, compound='left', command=self.delete_lop).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(lop_button_frame, text=" Xóa Form", image=self.clear_icon, compound='left', command=self.clear_lop_form).pack(side="left", expand=True, fill="x", padx=5)
         
-        lop_tree_frame = ttk.Frame(lop_content_frame)
+        lop_tree_frame = ttk.Frame(lop_content_frame, style="Main.TFrame")
         lop_tree_frame.grid(row=0, column=1, padx=(10,0), sticky="nsew")
         
         self.lop_tree = ttk.Treeview(lop_tree_frame, columns=("ID", "TenLop", "TenKhoa"), show="headings")
@@ -225,20 +255,20 @@ class App:
         lop_content_frame.grid_rowconfigure(0, weight=1)
 
     def create_khoa_tab(self):
-        khoa_main_frame = ttk.Frame(self.tab_khoa)
+        khoa_main_frame = ttk.Frame(self.tab_khoa, style="Main.TFrame")
         khoa_main_frame.pack(fill="both", expand=True)
-        khoa_form_frame = ttk.LabelFrame(khoa_main_frame, text="Thông tin Khoa", padding=10)
+        khoa_form_frame = ttk.LabelFrame(khoa_main_frame, text="Thông tin Khoa", padding=10, style="Main.TLabelframe")
         khoa_form_frame.grid(row=0, column=0, rowspan=2, padx=10, pady=10, sticky="ns")
         ttk.Label(khoa_form_frame, text="Tên Khoa:").grid(row=0, column=0, sticky="w", pady=5)
         self.khoa_ten_entry = ttk.Entry(khoa_form_frame, width=30)
         self.khoa_ten_entry.grid(row=0, column=1, sticky="ew", pady=5)
-        khoa_button_frame = ttk.LabelFrame(khoa_form_frame, text="Chức năng", padding=10)
+        khoa_button_frame = ttk.LabelFrame(khoa_form_frame, text="Chức năng", padding=10, style="Main.TLabelframe")
         khoa_button_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
         ttk.Button(khoa_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_khoa).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(khoa_button_frame, text=" Cập nhật", image=self.update_icon, compound='left', command=self.update_khoa).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(khoa_button_frame, text=" Xóa", image=self.delete_icon, compound='left', command=self.delete_khoa).pack(side="left", expand=True, fill="x", padx=5)
         ttk.Button(khoa_button_frame, text=" Xóa Form", image=self.clear_icon, compound='left', command=self.clear_khoa_form).pack(side="left", expand=True, fill="x", padx=5)
-        khoa_tree_frame = ttk.Frame(khoa_main_frame)
+        khoa_tree_frame = ttk.Frame(khoa_main_frame, style="Main.TFrame")
         khoa_tree_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         self.khoa_tree = ttk.Treeview(khoa_tree_frame, columns=("ID", "TenKhoa"), show="headings")
         self.khoa_tree.heading("ID", text="ID"); self.khoa_tree.heading("TenKhoa", text="Tên Khoa")
@@ -252,9 +282,9 @@ class App:
         khoa_main_frame.grid_rowconfigure(0, weight=1)
 
     def create_mon_hoc_tab(self):
-        mh_main_frame = ttk.Frame(self.tab_mon_hoc)
+        mh_main_frame = ttk.Frame(self.tab_mon_hoc, style="Main.TFrame")
         mh_main_frame.pack(fill="both", expand=True)
-        mh_form_frame = ttk.LabelFrame(mh_main_frame, text="Thông tin Môn học", padding=10)
+        mh_form_frame = ttk.LabelFrame(mh_main_frame, text="Thông tin Môn học", padding=10, style="Main.TLabelframe")
         mh_form_frame.grid(row=0, column=0, rowspan=2, padx=10, pady=10, sticky="ns")
         ttk.Label(mh_form_frame, text="Tên Môn học:").grid(row=0, column=0, sticky="w", pady=5)
         self.mh_ten_entry = ttk.Entry(mh_form_frame, width=30)
@@ -265,10 +295,10 @@ class App:
         ttk.Label(mh_form_frame, text="Thuộc Khoa:").grid(row=2, column=0, sticky="w", pady=5)
         self.mh_khoa_combo = ttk.Combobox(mh_form_frame, state="readonly", width=28)
         self.mh_khoa_combo.grid(row=2, column=1, sticky="ew", pady=5)
-        mh_button_frame = ttk.LabelFrame(mh_form_frame, text="Chức năng", padding=10)
+        mh_button_frame = ttk.LabelFrame(mh_form_frame, text="Chức năng", padding=10, style="Main.TLabelframe")
         mh_button_frame.grid(row=3, column=0, columnspan=2, pady=10, sticky="ew")
         ttk.Button(mh_button_frame, text=" Thêm", image=self.add_icon, compound='left', command=self.add_mon_hoc).pack(side="left", expand=True, fill="x", padx=5)
-        mh_tree_frame = ttk.Frame(mh_main_frame)
+        mh_tree_frame = ttk.Frame(mh_main_frame, style="Main.TFrame")
         mh_tree_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         self.mh_tree = ttk.Treeview(mh_tree_frame, columns=("ID", "TenMon", "SoTinChi", "TenKhoa"), show="headings")
         self.mh_tree.heading("ID", text="ID"); self.mh_tree.heading("TenMon", text="Tên Môn học"); self.mh_tree.heading("SoTinChi", text="Tín chỉ"); self.mh_tree.heading("TenKhoa", text="Tên Khoa")
@@ -279,7 +309,7 @@ class App:
         scrollbar_mh.pack(side="right", fill="y")
         mh_main_frame.grid_columnconfigure(1, weight=1)
         mh_main_frame.grid_rowconfigure(0, weight=1)
-
+    
     def debounce(self, func, delay):
         def wrapper(*args, **kwargs):
             if self._after_id:
